@@ -1,5 +1,5 @@
 {
-  "name": "Entity Group Card",
-  "filename": "entity-group-card.js",
+  "name": "Kirigami Card",
+  "filename": "kirigami-card.js",
   "render_readme": true
 }

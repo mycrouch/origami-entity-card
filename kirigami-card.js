@@ -1,5 +1,5 @@
 /*
- * entity-group-card — a clean, GUI-driven Lovelace card that groups a device's
+ * kirigami-card — a clean, GUI-driven Lovelace card that groups a device's
  * entities (or a hand-picked list) into a single tidy card.
  *
  * - Two entity sources: pick a device (auto-resolved via the entity registry)
@@ -14,10 +14,10 @@
  * Author: Jason Crouch — MIT. MDI icon paths © Pictogrammers (Apache 2.0).
  */
 
-const ENTITY_GROUP_CARD_VERSION = '1.3.2';
+const KIRIGAMI_CARD_VERSION = '1.4.0';
 
 console.info(
-  `%c ENTITY-GROUP-CARD %c v${ENTITY_GROUP_CARD_VERSION} `,
+  `%c KIRIGAMI-CARD %c v${KIRIGAMI_CARD_VERSION} `,
   'color:#fff;background:#1565c0;font-weight:700;border-radius:3px 0 0 3px;padding:2px 4px;',
   'color:#1565c0;background:#e3f0fb;font-weight:700;border-radius:0 3px 3px 0;padding:2px 4px;'
 );
@@ -70,7 +70,7 @@ function titleWords(value) {
 // The card
 // ---------------------------------------------------------------------------
 
-class EntityGroupCard extends HTMLElement {
+class KirigamiCard extends HTMLElement {
   setConfig(config) {
     this._config = Object.assign(
       {
@@ -396,12 +396,12 @@ class EntityGroupCard extends HTMLElement {
   }
 
   static getConfigElement() {
-    return document.createElement('entity-group-card-editor');
+    return document.createElement('kirigami-card-editor');
   }
 
   static getStubConfig() {
     return {
-      type: 'custom:entity-group-card',
+      type: 'custom:kirigami-card',
       source: 'device',
       entities: [],
       layout: 'rows',
@@ -411,13 +411,13 @@ class EntityGroupCard extends HTMLElement {
   }
 }
 
-customElements.define('entity-group-card', EntityGroupCard);
+customElements.define('kirigami-card', KirigamiCard);
 
 // ---------------------------------------------------------------------------
 // The GUI editor
 // ---------------------------------------------------------------------------
 
-class EntityGroupCardEditor extends HTMLElement {
+class KirigamiCardEditor extends HTMLElement {
   setConfig(config) {
     this._config = config || {};
     // Focus-loss fix: HA echoes emitted config back into setConfig. When only
@@ -855,7 +855,16 @@ class EntityGroupCardEditor extends HTMLElement {
   }
 }
 
-customElements.define('entity-group-card-editor', EntityGroupCardEditor);
+customElements.define('kirigami-card-editor', KirigamiCardEditor);
+
+// Back-compat: this card was first published as "entity-group-card". Keep the
+// old element names working so existing dashboards don't break after the rename.
+if (!customElements.get('entity-group-card')) {
+  customElements.define('entity-group-card', class extends KirigamiCard {});
+}
+if (!customElements.get('entity-group-card-editor')) {
+  customElements.define('entity-group-card-editor', class extends KirigamiCardEditor {});
+}
 
 // ---------------------------------------------------------------------------
 // Register in the card picker
@@ -863,10 +872,10 @@ customElements.define('entity-group-card-editor', EntityGroupCardEditor);
 
 window.customCards = window.customCards || [];
 window.customCards.push({
-  type: 'entity-group-card',
-  name: 'Entity Group Card',
+  type: 'kirigami-card',
+  name: 'Kirigami Card',
   preview: true,
   description:
     'Clean, GUI-driven card that groups a device’s entities (or a hand-picked list) as a labelled row-list or compact chip-grid, with default / per-card-theme / custom-gradient backgrounds.',
-  documentationURL: 'https://github.com/mycrouch/entity-group-card',
+  documentationURL: 'https://github.com/mycrouch/kirigami-card',
 });

@@ -27,4 +27,4 @@ jobs:
         with:
           node-version: "20"
       - name: Syntax check
-        run: node --check entity-group-card.js
+        run: node --check kirigami-card.js

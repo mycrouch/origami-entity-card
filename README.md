@@ -1,71 +1,63 @@
-# Entity Group Card
+# Kirigami Card
 
-A clean, GUI-driven Lovelace card that groups a device's entities — or any
-hand-picked list of entities — into a single tidy card. Built to sit alongside
-the rest of the [mycrouch card collection](#the-mycrouch-card-collection): same
-visual DNA, theme-native by default, no build step.
+One sheet of paper, folded and cut into countless shapes — that's the idea. A
+clean, GUI-driven Lovelace card that groups a device's entities, or any
+hand-picked list, into whatever shape your dashboard needs: a labelled row
+list, a compact chip grid, theme-native or on a custom gradient.
 
-![Entity Group Card — row list](images/default-rows.png)
+Part of the **kirigami** family of flexible, general-purpose Home Assistant cards.
+
+<table>
+  <tr>
+    <td width="33%" valign="top"><img src="images/rows.png" alt="Row list"></td>
+    <td width="33%" valign="top"><img src="images/grid.png" alt="Chip grid"></td>
+    <td width="33%" valign="top"><img src="images/gradients.png" alt="Gradient cards"></td>
+  </tr>
+</table>
 
 ## Features
 
 - **Two entity sources.** Pick a **device** and its entities are auto-loaded
   into an editable list — then remove any you don't want, reorder, rename, or
-  set a custom icon per entity, exactly as if you'd added them by hand. Or start
-  from **Entity** and hand-pick individual entities from anywhere.
+  set a custom icon per entity. Or start from **Entity** and hand-pick from
+  anywhere. (Device mode is rename-safe — it follows `device_id`.)
 - **Two layouts.** A labelled **row list** (icon · name · value) or a compact
-  **chip grid** (icon + value) that wraps responsively — matching the two
-  grouping styles used across the rest of the dashboard.
-- **State-aware icons.** Uses Home Assistant's own `<ha-state-icon>`, so a door
-  shows open/closed, a battery shows its level, and everything follows your
-  theme's icon colours automatically.
-- **Three background styles.** `default` (fully theme-native), `theme` (apply
-  *any installed theme* to just this card), or `manual` (a custom gradient with
-  a light/dark text toggle).
-- **Sensible state text.** Binary sensors read as *Open/Closed*, *Detected/Clear*,
-  *Normal/Low* etc. by `device_class`; sensors show their unit; tap any item to
-  open the native more-info dialog.
-- **Full GUI editor** with live preview — no YAML required.
-
-### Layouts
-
-The same entities as a labelled row list or a compact chip grid — pick per card.
-
-![Chip grid layout](images/chip-grid.png)
-
-### Backgrounds
-
-Default follows your active theme. `theme` mode gives every card its own theme
-picker — perfect with [gradient-themes](https://github.com/mycrouch/gradient-themes) —
-and `manual` mode takes any two-colour gradient.
-
-![Manual gradient background](images/gradient.png)
+  **chip grid** (icon + value) with a 1–5 **column chooser** (or responsive
+  auto-fit).
+- **Three background styles.** `default` (theme-native), `theme` (apply any
+  installed theme to just this card), or `manual` (a custom gradient).
+- **State-aware icons** via Home Assistant's own `<ha-state-icon>` (door
+  open/closed, battery level), with per-entity icon overrides.
+- **Tidy values.** `device_class`-aware text (Open/Closed, Detected/Clear,
+  Normal/Low); numbers rounded to 2 decimals; names ellipsise instead of
+  wrapping when narrow. Tap any item for the native more-info dialog.
+- **Full GUI editor** — Style and Content sections, no YAML required.
 
 ## Installation
 
 ### HACS (custom repository)
 
 1. HACS → three-dot menu → **Custom repositories**.
-2. Add `https://github.com/mycrouch/entity-group-card`, category **Dashboard**.
-3. Install **Entity Group Card**, then hard-refresh the browser.
+2. Add `https://github.com/mycrouch/kirigami-card`, category **Dashboard**.
+3. Install **Kirigami Card**, then hard-refresh the browser.
 
 ### Manual
 
-Copy `entity-group-card.js` to `/config/www/` and add a dashboard resource:
+Copy `kirigami-card.js` to `/config/www/` and add a dashboard resource:
 
 ```yaml
-url: /local/entity-group-card.js
+url: /local/kirigami-card.js
 type: module
 ```
 
 ## Configuration
 
-Add the card from the picker ("Entity Group Card") and use the visual editor —
-every option below is exposed there. YAML is fully supported too:
+Add the card from the picker ("Kirigami Card") and use the visual editor — every
+option is exposed there. YAML is fully supported too:
 
 ```yaml
 # Device mode — auto-pull a device's entities as a chip grid
-type: custom:entity-group-card
+type: custom:kirigami-card
 title: Kitchen
 icon: mdi:countertop
 source: device
@@ -75,13 +67,13 @@ columns: 3
 style: default
 
 # Manual mode — hand-picked entities as a row list on a custom gradient
-type: custom:entity-group-card
+type: custom:kirigami-card
 title: Front Door
 source: entities
 entities:
   - binary_sensor.front_door_contact
   - sensor.front_door_battery
-  - entity: binary_sensor.front_door_debug   # per-item override form
+  - entity: binary_sensor.front_door_debug
     name: Debug
     icon: mdi:bug
 layout: rows
@@ -96,12 +88,11 @@ background_end: "#0d2b45"
 | --- | --- | --- | --- |
 | `title` | string | – | Header title. Omit and set `show_header: false` for a bare card. |
 | `icon` | string | – | Optional header icon (any `mdi:` name). |
-| `source` | `entities` \| `device` | `entities` | Where the entities come from. |
-| `device` | string | – | Device ID (device mode). Entities auto-resolved from the registry. |
-| `show_advanced` | boolean | `false` | Include config/diagnostic entities in device mode. |
+| `source` | `device` \| `entities` | `device` | Where the entities come from. |
+| `device` | string | – | Device ID (device mode). Editor pre-fills the entity list from it. |
 | `entities` | list | `[]` | Entity IDs, or `{entity, name, icon, hide}` objects for overrides. |
 | `layout` | `rows` \| `grid` | `rows` | Row list or chip grid. |
-| `columns` | number | auto | Fixed column count for grid mode (otherwise responsive). |
+| `columns` | number | auto | Fixed column count 1–5 for grid (blank = responsive auto-fit). |
 | `style` | `default` \| `theme` \| `manual` | `default` | Background style. |
 | `theme` | string | – | Installed theme name (theme mode). |
 | `background_start` | hex | `#1565c0` | Gradient start (manual mode). |
@@ -109,11 +100,8 @@ background_end: "#0d2b45"
 | `dark_text` | boolean | `false` | Use dark text for light gradients. |
 | `show_header` | boolean | `true` | Show/hide the header row. |
 
-Per-entity `name` and `icon` overrides are editable right in the visual editor
-(one row per entity, with move/remove), and live in the card config — they never
-touch the entity registry, so changes here are local to this card. A custom
-`icon` accepts any `mdi:` name, so you can swap a filled glyph for its outline
-variant (e.g. `mdi:battery` → `mdi:battery-outline`).
+> Previously published as **entity-group-card**; the old `custom:entity-group-card`
+> type still works as an alias, so existing dashboards keep rendering.
 
 ## The mycrouch card collection
 
@@ -124,7 +112,7 @@ picker — so they sit together neatly on one dashboard. Pair any of them with
 
 | Card | What it is |
 | --- | --- |
-| **Entity Group Card** (this card) | Group any device's entities as a row list or chip grid |
+| **Kirigami Card** (this card) | Group any device's entities as a row list or chip grid |
 | [pro-v-weather-card](https://github.com/mycrouch/pro-v-weather-card) | Weather-station console — clock, moon, forecast, UV, solar, wind |
 | [weather-station-card](https://github.com/mycrouch/weather-station-card) | LCD-console weather station with backlight themes |
 | [airtouch-card](https://github.com/mycrouch/airtouch-card) | AirTouch 4/5 AC + zone control |
