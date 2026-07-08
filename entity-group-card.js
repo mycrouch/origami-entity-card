@@ -14,7 +14,7 @@
  * Author: Jason Crouch — MIT. MDI icon paths © Pictogrammers (Apache 2.0).
  */
 
-const ENTITY_GROUP_CARD_VERSION = '1.0.1';
+const ENTITY_GROUP_CARD_VERSION = '1.1.0';
 
 console.info(
   `%c ENTITY-GROUP-CARD %c v${ENTITY_GROUP_CARD_VERSION} `,
@@ -74,7 +74,7 @@ class EntityGroupCard extends HTMLElement {
   setConfig(config) {
     this._config = Object.assign(
       {
-        source: 'entities',
+        source: 'device',
         layout: 'rows',
         style: 'default',
         show_header: true,
@@ -92,9 +92,10 @@ class EntityGroupCard extends HTMLElement {
     this._hass = hass;
     if (!this._config) return;
 
-    // Device mode needs the entity registry to know which entities belong to
-    // the chosen device. Fetch once, lazily, then re-render.
-    if (this._config.source === 'device' && this._config.device) {
+    // YAML fallback only: an empty list + a device needs the registry to know
+    // which entities belong to it. Normally the editor pre-fills `entities`.
+    const hasList = (this._config.entities || []).length > 0;
+    if (!hasList && this._config.source === 'device' && this._config.device) {
       if (!this._registry && !this._registryLoading) {
         this._loadRegistry();
         return; // render will fire when the registry resolves
@@ -135,48 +136,37 @@ class EntityGroupCard extends HTMLElement {
   }
 
   // Returns an ordered array of { entity, name?, icon? } items to display.
+  // The `entities` list is the source of truth (device mode just pre-fills it
+  // in the editor). As a YAML convenience, an empty list + a device falls back
+  // to live registry resolution.
   _resolveEntities() {
     const cfg = this._config;
     if (!cfg) return [];
 
-    // Per-entity overrides supplied in config (works in either mode).
-    const overrides = {};
-    (cfg.entities || []).forEach((item) => {
-      if (typeof item === 'string') {
-        overrides[item] = {};
-      } else if (item && item.entity) {
-        overrides[item.entity] = item;
-      }
-    });
-
-    if (cfg.source === 'device') {
-      if (!cfg.device || !this._registry) return [];
-      const showAdvanced = !!cfg.show_advanced;
-      let entries = this._registry
-        .filter((e) => e.device_id === cfg.device)
-        .filter((e) => !e.hidden_by && !e.disabled_by)
-        .filter((e) => showAdvanced || (e.entity_category !== 'config' && e.entity_category !== 'diagnostic'));
-      return entries
-        .map((e) => {
-          const ov = overrides[e.entity_id] || {};
-          if (ov.hide) return null;
-          return { entity: e.entity_id, name: ov.name, icon: ov.icon };
+    const list = cfg.entities || [];
+    if (list.length) {
+      return list
+        .map((item) => {
+          if (typeof item === 'string') return { entity: item };
+          if (item && item.entity) {
+            if (item.hide) return null;
+            return { entity: item.entity, name: item.name, icon: item.icon };
+          }
+          return null;
         })
         .filter(Boolean);
     }
 
-    // Manual entities mode. Accept the GUI's multi-select array of ids, or the
-    // richer list-of-objects form.
-    return (cfg.entities || [])
-      .map((item) => {
-        if (typeof item === 'string') return { entity: item };
-        if (item && item.entity) {
-          if (item.hide) return null;
-          return { entity: item.entity, name: item.name, icon: item.icon };
-        }
-        return null;
-      })
-      .filter(Boolean);
+    if (cfg.source === 'device' && cfg.device && this._registry) {
+      const showAdvanced = !!cfg.show_advanced;
+      return this._registry
+        .filter((e) => e.device_id === cfg.device)
+        .filter((e) => !e.hidden_by && !e.disabled_by)
+        .filter((e) => showAdvanced || (e.entity_category !== 'config' && e.entity_category !== 'diagnostic'))
+        .map((e) => ({ entity: e.entity_id }));
+    }
+
+    return [];
   }
 
   _formatState(stateObj) {
@@ -232,7 +222,9 @@ class EntityGroupCard extends HTMLElement {
       cardBackground: '',
       text: 'var(--primary-text-color)',
       secondary: 'var(--secondary-text-color)',
-      chip: 'var(--secondary-background-color, rgba(127,127,127,.12))',
+      // A soft neutral overlay — light on light themes, subtle on dark — rather
+      // than --secondary-background-color, which is too heavy on many themes.
+      chip: 'rgba(127, 127, 127, 0.10)',
       iconColor: '',
     };
   }
@@ -399,7 +391,7 @@ class EntityGroupCard extends HTMLElement {
   static getStubConfig() {
     return {
       type: 'custom:entity-group-card',
-      source: 'entities',
+      source: 'device',
       entities: [],
       layout: 'rows',
       style: 'default',
@@ -416,25 +408,89 @@ customElements.define('entity-group-card', EntityGroupCard);
 
 class EntityGroupCardEditor extends HTMLElement {
   setConfig(config) {
-    // Focus-loss fix: HA echoes emitted config back into setConfig. Skip work
-    // when the normalized config is unchanged so text fields keep focus.
-    const norm = JSON.stringify(Object.assign({}, config, { type: undefined }));
-    this._config = config;
-    if (norm === this._lastNorm && this._form) {
-      this._form.data = config;
+    this._config = config || {};
+    // Focus-loss fix: HA echoes emitted config back into setConfig. When only
+    // field values changed (not the structure), just refresh form data instead
+    // of rebuilding the DOM, so inputs keep focus.
+    const sig = this._structSig(this._config);
+    if (this._built && sig === this._structSig(this._lastConfig || {})) {
+      this._lastConfig = this._config;
+      this._refreshData();
       return;
     }
-    this._lastNorm = norm;
-    this._build();
+    this._lastConfig = this._config;
+    this._render();
   }
 
   set hass(hass) {
     this._hass = hass;
-    if (this._form) this._form.hass = hass;
-    if (!this._built) this._build();
+    if (this._genForm) this._genForm.hass = hass;
+    if (this._deviceForm) this._deviceForm.hass = hass;
+    if (this._addForm) this._addForm.hass = hass;
+    (this._rowForms || []).forEach((f) => (f.hass = hass));
+    if (!this._built) this._render();
   }
 
-  _schema() {
+  // What forces a full rebuild: the source, the device, and the list of entity
+  // ids (add/remove/reorder). Editing a name/icon does NOT change this.
+  _structSig(cfg) {
+    return JSON.stringify([
+      cfg.source || 'device',
+      cfg.device || '',
+      cfg.layout || 'rows',
+      cfg.style || 'default',
+      this._ids(cfg),
+    ]);
+  }
+
+  _ids(cfg) {
+    return (cfg.entities || []).map((e) => (typeof e === 'string' ? e : e && e.entity)).filter(Boolean);
+  }
+
+  _rows(cfg) {
+    return (cfg.entities || [])
+      .map((e) => (typeof e === 'string' ? { entity: e } : e))
+      .filter((e) => e && e.entity);
+  }
+
+  // Emit a cleaned config: entities become plain strings when they carry no
+  // override, objects when they do.
+  _emit(next) {
+    const clean = Object.assign({}, next);
+    clean.entities = (next.entities || []).map((e) => {
+      const o = typeof e === 'string' ? { entity: e } : e;
+      const out = { entity: o.entity };
+      if (o.name) out.name = o.name;
+      if (o.icon) out.icon = o.icon;
+      return out.name || out.icon ? out : o.entity;
+    });
+    this._config = clean;
+    this._lastConfig = clean;
+    this.dispatchEvent(
+      new CustomEvent('config-changed', { detail: { config: clean }, bubbles: true, composed: true })
+    );
+  }
+
+  _labels() {
+    return {
+      title: 'Title (optional)',
+      icon: 'Header icon (optional)',
+      source: 'Choose a device or pick entities',
+      device: 'Device',
+      layout: 'Layout',
+      columns: 'Columns (grid)',
+      style: 'Background style',
+      theme: 'Theme',
+      background_start: 'Gradient start (hex, e.g. #1565c0)',
+      background_end: 'Gradient end (hex, e.g. #0d2b45)',
+      dark_text: 'Dark text (for light gradients)',
+      show_header: 'Show header',
+      entity: 'Entity',
+      name: 'Name',
+    };
+  }
+
+  _genSchema() {
     const cfg = this._config || {};
     const schema = [
       { name: 'title', selector: { text: {} } },
@@ -445,37 +501,28 @@ class EntityGroupCardEditor extends HTMLElement {
           select: {
             mode: 'dropdown',
             options: [
-              { value: 'entities', label: 'Pick entities' },
-              { value: 'device', label: 'Pick a device' },
+              { value: 'device', label: 'Device — choose a device' },
+              { value: 'entities', label: 'Entity — pick entities' },
+            ],
+          },
+        },
+      },
+      {
+        name: 'layout',
+        selector: {
+          select: {
+            mode: 'dropdown',
+            options: [
+              { value: 'rows', label: 'Row list (icon · name · value)' },
+              { value: 'grid', label: 'Chip grid (icon + value)' },
             ],
           },
         },
       },
     ];
-
-    if (cfg.source === 'device') {
-      schema.push({ name: 'device', selector: { device: {} } });
-      schema.push({ name: 'show_advanced', selector: { boolean: {} } });
-    } else {
-      schema.push({ name: 'entities', selector: { entity: { multiple: true } } });
-    }
-
-    schema.push({
-      name: 'layout',
-      selector: {
-        select: {
-          mode: 'dropdown',
-          options: [
-            { value: 'rows', label: 'Row list (icon · name · value)' },
-            { value: 'grid', label: 'Chip grid (icon + value)' },
-          ],
-        },
-      },
-    });
     if (cfg.layout === 'grid') {
       schema.push({ name: 'columns', selector: { number: { min: 1, max: 8, mode: 'box' } } });
     }
-
     schema.push({
       name: 'style',
       selector: {
@@ -489,62 +536,257 @@ class EntityGroupCardEditor extends HTMLElement {
         },
       },
     });
-
     if (cfg.style === 'theme') {
       const themeNames =
         this._hass && this._hass.themes && this._hass.themes.themes
           ? Object.keys(this._hass.themes.themes).sort()
           : [];
-      schema.push({
-        name: 'theme',
-        selector: { select: { mode: 'dropdown', options: themeNames } },
-      });
+      schema.push({ name: 'theme', selector: { select: { mode: 'dropdown', options: themeNames } } });
     } else if (cfg.style === 'manual') {
       schema.push({ name: 'background_start', selector: { text: {} } });
       schema.push({ name: 'background_end', selector: { text: {} } });
       schema.push({ name: 'dark_text', selector: { boolean: {} } });
     }
-
     schema.push({ name: 'show_header', selector: { boolean: {} } });
     return schema;
   }
 
-  _labels() {
-    return {
-      title: 'Title (optional)',
-      icon: 'Header icon (optional)',
-      source: 'Entity source',
-      device: 'Device',
-      show_advanced: 'Include config/diagnostic entities',
-      entities: 'Entities',
-      layout: 'Layout',
-      columns: 'Columns (grid)',
-      style: 'Background style',
-      theme: 'Theme',
-      background_start: 'Gradient start (hex, e.g. #1565c0)',
-      background_end: 'Gradient end (hex, e.g. #0d2b45)',
-      dark_text: 'Dark text (for light gradients)',
-      show_header: 'Show header',
-    };
+  async _loadDeviceEntities(device) {
+    if (!this._hass || !device) return;
+    try {
+      if (!this._reg) this._reg = await this._hass.callWS({ type: 'config/entity_registry/list' });
+    } catch (e) {
+      this._reg = [];
+    }
+    const ids = this._reg
+      .filter((e) => e.device_id === device && !e.hidden_by && !e.disabled_by)
+      .map((e) => e.entity_id);
+    this._emit(Object.assign({}, this._config, { entities: ids }));
+    this._render();
   }
 
-  _build() {
+  _render() {
     this._built = true;
-    if (!this._form) {
-      this._form = document.createElement('ha-form');
-      this._form.computeLabel = (s) => this._labels()[s.name] || s.name;
-      this._form.addEventListener('value-changed', (ev) => {
+    const cfg = this._config || {};
+
+    if (!this._container) {
+      this._container = document.createElement('div');
+      const style = document.createElement('style');
+      style.textContent = `
+        .egc-ed { display: flex; flex-direction: column; gap: 12px; }
+        .egc-sec-title { font-weight: 500; margin: 4px 0 0; }
+        .egc-hint { color: var(--secondary-text-color); font-size: 12px; margin: -4px 0 4px; }
+        .egc-row { display: flex; align-items: flex-start; gap: 6px; border: 1px solid var(--divider-color, #e0e0e0); border-radius: 8px; padding: 8px; }
+        .egc-row ha-form { flex: 1 1 auto; }
+        .egc-row-actions { display: flex; flex-direction: column; gap: 2px; }
+        .egc-icon-btn { border: none; background: none; cursor: pointer; color: var(--secondary-text-color); border-radius: 6px; width: 30px; height: 26px; }
+        .egc-icon-btn:hover { background: var(--secondary-background-color, #eee); color: var(--primary-text-color); }
+        .egc-btn { align-self: flex-start; border: 1px solid var(--primary-color); color: var(--primary-color); background: none; border-radius: 18px; padding: 6px 14px; cursor: pointer; font-family: inherit; font-size: 14px; }
+        .egc-btn:hover { background: rgba(127,127,127,0.08); }
+        .egc-add { border-top: 1px dashed var(--divider-color, #e0e0e0); padding-top: 10px; }
+      `;
+      this._container.appendChild(style);
+
+      this._inner = document.createElement('div');
+      this._inner.className = 'egc-ed';
+      this._container.appendChild(this._inner);
+      this.appendChild(this._container);
+
+      // General options form
+      this._genForm = document.createElement('ha-form');
+      this._genForm.computeLabel = (s) => this._labels()[s.name] || s.name;
+      this._genForm.addEventListener('value-changed', (ev) => {
         ev.stopPropagation();
-        const next = Object.assign({}, this._config, ev.detail.value);
-        this.dispatchEvent(
-          new CustomEvent('config-changed', { detail: { config: next }, bubbles: true, composed: true })
-        );
+        const prev = this._config || {};
+        const next = Object.assign({}, prev, ev.detail.value);
+        // Only rebuild the DOM when the structure changes (which fields exist).
+        // Plain value edits (title, theme, colours) must not rebuild, or the
+        // focused input loses focus every keystroke.
+        const structural =
+          next.source !== prev.source || next.layout !== prev.layout || next.style !== prev.style;
+        this._emit(next);
+        if (structural) this._render();
       });
-      this.appendChild(this._form);
+      this._inner.appendChild(this._genForm);
+
+      // Device picker section
+      this._deviceWrap = document.createElement('div');
+      this._inner.appendChild(this._deviceWrap);
+
+      // Entities section
+      this._entTitle = document.createElement('div');
+      this._entTitle.className = 'egc-sec-title';
+      this._entTitle.textContent = 'Entities';
+      this._inner.appendChild(this._entTitle);
+
+      this._entHint = document.createElement('div');
+      this._entHint.className = 'egc-hint';
+      this._inner.appendChild(this._entHint);
+
+      this._rowsWrap = document.createElement('div');
+      this._rowsWrap.className = 'egc-ed';
+      this._inner.appendChild(this._rowsWrap);
+
+      this._addWrap = document.createElement('div');
+      this._addWrap.className = 'egc-add';
+      this._inner.appendChild(this._addWrap);
     }
-    if (this._hass) this._form.hass = this._hass;
-    this._form.schema = this._schema();
-    this._form.data = this._config || {};
+
+    if (this._hass) this._genForm.hass = this._hass;
+    this._genForm.schema = this._genSchema();
+    this._genForm.data = cfg;
+
+    this._renderDeviceSection();
+    this._renderRows();
+    this._built = true;
+    this._lastConfig = cfg;
+  }
+
+  _renderDeviceSection() {
+    const cfg = this._config || {};
+    this._deviceWrap.innerHTML = '';
+    this._deviceForm = null;
+    if (cfg.source !== 'device') return;
+
+    this._deviceForm = document.createElement('ha-form');
+    this._deviceForm.computeLabel = (s) => this._labels()[s.name] || s.name;
+    if (this._hass) this._deviceForm.hass = this._hass;
+    this._deviceForm.schema = [{ name: 'device', selector: { device: {} } }];
+    this._deviceForm.data = { device: cfg.device };
+    this._deviceForm.addEventListener('value-changed', (ev) => {
+      ev.stopPropagation();
+      const dev = ev.detail.value.device;
+      const next = Object.assign({}, this._config, { device: dev });
+      const empty = (this._config.entities || []).length === 0;
+      if (dev && empty) {
+        this._config = next;
+        this._loadDeviceEntities(dev); // auto-populate on first pick
+      } else {
+        this._emit(next);
+        this._render();
+      }
+    });
+    this._deviceWrap.appendChild(this._deviceForm);
+
+    if (cfg.device) {
+      const btn = document.createElement('button');
+      btn.className = 'egc-btn';
+      btn.style.marginTop = '8px';
+      btn.textContent = (cfg.entities || []).length ? 'Reload entities from device (replaces list)' : 'Load entities from device';
+      btn.addEventListener('click', () => this._loadDeviceEntities(cfg.device));
+      this._deviceWrap.appendChild(btn);
+    }
+  }
+
+  _renderRows() {
+    const rows = this._rows(this._config);
+    this._entHint.textContent =
+      this._config.source === 'device'
+        ? 'Auto-filled from the device. Remove any you don’t want, rename, reorder, or set a custom icon.'
+        : 'Add entities, then rename, reorder, or set a custom icon per entity.';
+
+    this._rowsWrap.innerHTML = '';
+    this._rowForms = [];
+
+    rows.forEach((row, i) => {
+      const rowEl = document.createElement('div');
+      rowEl.className = 'egc-row';
+
+      const f = document.createElement('ha-form');
+      f.computeLabel = (s) => this._labels()[s.name] || s.name;
+      if (this._hass) f.hass = this._hass;
+      f.schema = [
+        {
+          type: 'grid',
+          name: '',
+          schema: [
+            { name: 'entity', selector: { entity: {} } },
+            { name: 'name', selector: { text: {} } },
+            { name: 'icon', selector: { icon: {} } },
+          ],
+        },
+      ];
+      f.data = { entity: row.entity, name: row.name || '', icon: row.icon || '' };
+      f.addEventListener('value-changed', (ev) => {
+        ev.stopPropagation();
+        const v = ev.detail.value;
+        const list = this._rows(this._config).slice();
+        list[i] = { entity: v.entity, name: v.name || undefined, icon: v.icon || undefined };
+        this._emit(Object.assign({}, this._config, { entities: list }));
+        // entity id change alters structure -> full rebuild; name/icon won't.
+        if (v.entity !== row.entity) this._render();
+      });
+      this._rowForms.push(f);
+      rowEl.appendChild(f);
+
+      const actions = document.createElement('div');
+      actions.className = 'egc-row-actions';
+      const mk = (label, title, fn) => {
+        const b = document.createElement('button');
+        b.className = 'egc-icon-btn';
+        b.innerHTML = label;
+        b.title = title;
+        b.addEventListener('click', fn);
+        return b;
+      };
+      actions.appendChild(
+        mk('&#9650;', 'Move up', () => this._move(i, -1))
+      );
+      actions.appendChild(
+        mk('&#9660;', 'Move down', () => this._move(i, 1))
+      );
+      actions.appendChild(
+        mk('&#10005;', 'Remove', () => this._remove(i))
+      );
+      rowEl.appendChild(actions);
+      this._rowsWrap.appendChild(rowEl);
+    });
+
+    // Add-entity picker
+    this._addWrap.innerHTML = '';
+    this._addForm = document.createElement('ha-form');
+    this._addForm.computeLabel = () => 'Add an entity';
+    if (this._hass) this._addForm.hass = this._hass;
+    this._addForm.schema = [{ name: 'entity', selector: { entity: {} } }];
+    this._addForm.data = { entity: '' };
+    this._addForm.addEventListener('value-changed', (ev) => {
+      ev.stopPropagation();
+      const id = ev.detail.value.entity;
+      if (!id) return;
+      const list = this._rows(this._config).slice();
+      list.push({ entity: id });
+      this._emit(Object.assign({}, this._config, { entities: list }));
+      this._render();
+    });
+    this._addWrap.appendChild(this._addForm);
+  }
+
+  _move(i, dir) {
+    const list = this._rows(this._config).slice();
+    const j = i + dir;
+    if (j < 0 || j >= list.length) return;
+    const t = list[i];
+    list[i] = list[j];
+    list[j] = t;
+    this._emit(Object.assign({}, this._config, { entities: list }));
+    this._render();
+  }
+
+  _remove(i) {
+    const list = this._rows(this._config).slice();
+    list.splice(i, 1);
+    this._emit(Object.assign({}, this._config, { entities: list }));
+    this._render();
+  }
+
+  _refreshData() {
+    const cfg = this._config || {};
+    if (this._genForm) this._genForm.data = cfg;
+    const rows = this._rows(cfg);
+    (this._rowForms || []).forEach((f, i) => {
+      const r = rows[i];
+      if (r) f.data = { entity: r.entity, name: r.name || '', icon: r.icon || '' };
+    });
   }
 }
 

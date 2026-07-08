@@ -9,9 +9,10 @@ visual DNA, theme-native by default, no build step.
 
 ## Features
 
-- **Two entity sources.** Pick a **device** and its entities are auto-resolved
-  via the entity registry (rename-safe — it follows `device_id`, not entity-ID
-  naming), or hand-pick **individual entities** from anywhere.
+- **Two entity sources.** Pick a **device** and its entities are auto-loaded
+  into an editable list — then remove any you don't want, reorder, rename, or
+  set a custom icon per entity, exactly as if you'd added them by hand. Or start
+  from **Entity** and hand-pick individual entities from anywhere.
 - **Two layouts.** A labelled **row list** (icon · name · value) or a compact
   **chip grid** (icon + value) that wraps responsively — matching the two
   grouping styles used across the rest of the dashboard.
@@ -108,8 +109,11 @@ background_end: "#0d2b45"
 | `dark_text` | boolean | `false` | Use dark text for light gradients. |
 | `show_header` | boolean | `true` | Show/hide the header row. |
 
-Per-entity overrides (`name`, `icon`, `hide`) live in the card config and never
-touch the entity registry, so renaming here is local to this card.
+Per-entity `name` and `icon` overrides are editable right in the visual editor
+(one row per entity, with move/remove), and live in the card config — they never
+touch the entity registry, so changes here are local to this card. A custom
+`icon` accepts any `mdi:` name, so you can swap a filled glyph for its outline
+variant (e.g. `mdi:battery` → `mdi:battery-outline`).
 
 ## The mycrouch card collection
 
