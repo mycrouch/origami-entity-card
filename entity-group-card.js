@@ -14,7 +14,7 @@
  * Author: Jason Crouch — MIT. MDI icon paths © Pictogrammers (Apache 2.0).
  */
 
-const ENTITY_GROUP_CARD_VERSION = '1.1.0';
+const ENTITY_GROUP_CARD_VERSION = '1.1.1';
 
 console.info(
   `%c ENTITY-GROUP-CARD %c v${ENTITY_GROUP_CARD_VERSION} `,
@@ -428,7 +428,7 @@ class EntityGroupCardEditor extends HTMLElement {
     if (this._deviceForm) this._deviceForm.hass = hass;
     if (this._addForm) this._addForm.hass = hass;
     (this._rowForms || []).forEach((f) => (f.hass = hass));
-    if (!this._built) this._render();
+    if (!this._built && this._config) this._render();
   }
 
   // What forces a full rebuild: the source, the device, and the list of entity
@@ -444,11 +444,11 @@ class EntityGroupCardEditor extends HTMLElement {
   }
 
   _ids(cfg) {
-    return (cfg.entities || []).map((e) => (typeof e === 'string' ? e : e && e.entity)).filter(Boolean);
+    return ((cfg && cfg.entities) || []).map((e) => (typeof e === 'string' ? e : e && e.entity)).filter(Boolean);
   }
 
   _rows(cfg) {
-    return (cfg.entities || [])
+    return ((cfg && cfg.entities) || [])
       .map((e) => (typeof e === 'string' ? { entity: e } : e))
       .filter((e) => e && e.entity);
   }
