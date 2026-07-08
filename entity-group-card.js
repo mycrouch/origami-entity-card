@@ -14,7 +14,7 @@
  * Author: Jason Crouch — MIT. MDI icon paths © Pictogrammers (Apache 2.0).
  */
 
-const ENTITY_GROUP_CARD_VERSION = '1.3.0';
+const ENTITY_GROUP_CARD_VERSION = '1.3.1';
 
 console.info(
   `%c ENTITY-GROUP-CARD %c v${ENTITY_GROUP_CARD_VERSION} `,
@@ -224,7 +224,7 @@ class EntityGroupCard extends HTMLElement {
       secondary: 'var(--secondary-text-color)',
       // A soft neutral overlay — light on light themes, subtle on dark — rather
       // than --secondary-background-color, which is too heavy on many themes.
-      chip: 'rgba(127, 127, 127, 0.10)',
+      chip: 'rgba(127, 127, 127, 0.06)',
       iconColor: '',
     };
   }
@@ -317,7 +317,7 @@ class EntityGroupCard extends HTMLElement {
             ${pal.cardBackground ? `background: ${pal.cardBackground};` : ''}
             overflow: hidden;
           }
-          .dc-wrap { padding: 16px; ${pal.iconColor ? `--dc-icon-color:${pal.iconColor};` : ''} }
+          .dc-wrap { padding: 14px 12px; ${pal.iconColor ? `--dc-icon-color:${pal.iconColor};` : ''} }
           .dc-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
           .dc-header-icon { --mdc-icon-size: 24px; color: ${pal.secondary}; }
           .dc-title { font-size: 24px; font-weight: 400; color: ${pal.text}; line-height: 1.1; }
@@ -333,13 +333,13 @@ class EntityGroupCard extends HTMLElement {
           .dc-row-value { color: ${pal.secondary}; font-size: 15px; text-align: right; white-space: nowrap; flex: 0 0 auto; }
 
           /* chip grid */
-          .dc-grid { display: grid; ${gridCols} gap: 12px; }
+          .dc-grid { display: grid; ${gridCols} gap: 8px; }
           .dc-chip {
             display: flex; flex-direction: column; align-items: center; gap: 8px;
-            padding: 14px 8px; border-radius: 14px; background: ${pal.chip};
+            padding: 12px 4px; border-radius: 14px; background: ${pal.chip};
             cursor: pointer; min-width: 0;
           }
-          .dc-chip-value { color: ${pal.text}; font-size: 15px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+          .dc-chip-value { color: ${pal.text}; font-size: 14px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 
           .dc-row-icon ha-state-icon, .dc-row-icon ha-icon,
           .dc-chip-icon ha-state-icon, .dc-chip-icon ha-icon {
