@@ -14,7 +14,7 @@
  * Author: Jason Crouch — MIT. MDI icon paths © Pictogrammers (Apache 2.0).
  */
 
-const KIRIGAMI_CARD_VERSION = '1.4.1';
+const KIRIGAMI_CARD_VERSION = '1.4.2';
 
 console.info(
   `%c KIRIGAMI-CARD %c v${KIRIGAMI_CARD_VERSION} `,
@@ -65,6 +65,16 @@ function titleWords(value) {
     .map((w) => (w.length ? w.charAt(0).toUpperCase() + w.slice(1) : w))
     .join(' ');
 }
+
+// A little folded-paper origami crane — shown in the empty state (which is what
+// Home Assistant renders as the card's preview in the "Add card" picker).
+const KIRIGAMI_MARK = `<svg class="dc-mark" viewBox="0 0 120 96" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <path d="M4 42 L31 35 L58 55 L51 61 Z" opacity="0.7"/>
+  <path d="M52 56 L72 16 L94 47 Z"/>
+  <path d="M58 56 L114 44 L60 66 Z" opacity="0.7"/>
+  <path d="M52 58 L62 58 L60 74 L50 74 Z"/>
+  <path d="M55 74 L51 90 M60 74 L65 90" stroke="currentColor" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+</svg>`;
 
 // ---------------------------------------------------------------------------
 // The card
@@ -285,7 +295,10 @@ class KirigamiCard extends HTMLElement {
     // Body
     let bodyHtml = '';
     if (!list.length) {
-      bodyHtml = `<div class="dc-empty">No entities selected. Open the card editor to choose a device or entities.</div>`;
+      bodyHtml = `<div class="dc-empty">
+          ${KIRIGAMI_MARK}
+          <div>No entities selected. Open the card editor to choose a device or entities.</div>
+        </div>`;
     } else if (layout === 'grid') {
       bodyHtml = `<div class="dc-grid">${list
         .map((item, i) => {
@@ -330,7 +343,8 @@ class KirigamiCard extends HTMLElement {
           .dc-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
           .dc-header-icon { --mdc-icon-size: 24px; color: ${pal.secondary}; }
           .dc-title { font-size: 24px; font-weight: 400; color: ${pal.text}; line-height: 1.1; }
-          .dc-empty { color: ${pal.secondary}; font-size: 14px; }
+          .dc-empty { color: ${pal.secondary}; font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; padding: 20px 8px; }
+          .dc-mark { width: 66px; height: auto; fill: currentColor; opacity: 0.85; }
 
           /* row list */
           .dc-rows { display: flex; flex-direction: column; gap: 14px; }
