@@ -5,7 +5,7 @@ hand-picked list of entities — into a single tidy card. Built to sit alongside
 the rest of the [mycrouch card collection](#the-mycrouch-card-collection): same
 visual DNA, theme-native by default, no build step.
 
-![Entity Group Card — default style](images/hero.png)
+![Entity Group Card — row list](images/default-rows.png)
 
 ## Features
 
@@ -31,7 +31,7 @@ visual DNA, theme-native by default, no build step.
 
 The same entities as a labelled row list or a compact chip grid — pick per card.
 
-![Row list and chip grid layouts](images/layouts.png)
+![Chip grid layout](images/chip-grid.png)
 
 ### Backgrounds
 
@@ -39,7 +39,7 @@ Default follows your active theme. `theme` mode gives every card its own theme
 picker — perfect with [gradient-themes](https://github.com/mycrouch/gradient-themes) —
 and `manual` mode takes any two-colour gradient.
 
-![Per-card theme and manual gradient backgrounds](images/backgrounds.png)
+![Manual gradient background](images/gradient.png)
 
 ## Installation
 
