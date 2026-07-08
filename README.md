@@ -26,6 +26,12 @@ visual DNA, theme-native by default, no build step.
   open the native more-info dialog.
 - **Full GUI editor** with live preview — no YAML required.
 
+### Layouts
+
+The same entities as a labelled row list or a compact chip grid — pick per card.
+
+![Row list and chip grid layouts](images/layouts.png)
+
 ### Backgrounds
 
 Default follows your active theme. `theme` mode gives every card its own theme
