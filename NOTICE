@@ -1,0 +1,7 @@
+device-card
+Copyright (c) 2026 Jason Crouch
+
+This product bundles no third-party code. Icons are rendered at runtime via
+Home Assistant's built-in Material Design Icons (© Pictogrammers, Apache 2.0)
+through the <ha-state-icon> / <ha-icon> elements — no icon assets are shipped
+in this repository.
